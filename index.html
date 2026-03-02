@@ -69,7 +69,7 @@
                 id: 'gemini-3-flash-preview', 
                 name: 'Gemini 3.0 Flash Preview',
                 provider: 'google',
-                apiKey: 'AIzaSyCVvwlKglphW-Mq5C-ecw5qHhs_3GNjTGY',
+                apiKey: '', // 已完全删除内置 API Key，要求用户留空并自行输入
                 baseUrl: ''
             }
         ];
@@ -140,6 +140,30 @@
                 "抱怨'天气不好/场地太差'导致输球，却无视对手在同等条件下的表现（双重标准/借口）",
                 "认为'既然被骂得这么惨，我们在国家队随便踢踢就行了，反正赢不了'（消极摆烂/不相干推论）"
             ],
+            // 吵架实战篇 (新增)
+            "网络喷子": [
+                "完全无视你提供的事实证据，直接对你进行恶毒的人身攻击和贴标签（人身攻击/扣帽子）",
+                "故意曲解你的原话，竖起一个你根本没说过的观点进行疯狂输出（稻草人谬误）",
+                "用极端的非黑即白逻辑逼站队，‘你不跟我们一起骂他，你就是拿了钱的洗地狗’（虚假两难/诉诸动机）"
+            ],
+            "杠精网友": [
+                "用极个别的极端特例，来强行反驳你说的普遍客观规律（以偏概全/特例谬误）",
+                "当你指出一个问题时，他用‘那某某问题你怎么不说？你就是双标’来转移话题（诉诸伪善/转移焦点）",
+                "在你客观评价某事时，阴阳怪气‘你行你上啊，键盘侠’（不当要求/转移话题）"
+            ],
+            "催婚亲戚": [
+                "用‘不结婚就是自私，老了死在家里都没人知道’来恐吓和道德绑架（诉诸恐惧/情感勒索）",
+                "‘男大当婚女大当嫁，自古以来大家都这样，你怎么能特殊？’（诉诸传统/诉诸群众）",
+                "把你所有的人生成功都贬低为0，认为‘没结婚/没生孩子的人生就是彻底失败的’（极端非黑即白/单因谬误）"
+            ],
+            "多管闲事邻居": [
+                "打着‘我都是为了你好，别人我才懒得说’的旗号，强行干涉你的个人私生活（道德绑架/动机绑架）",
+                "拿你完全不认识的‘别人家的优秀孩子/媳妇’来暗讽你现在的状态（错误类比/拉踩）"
+            ],
+            "路怒症司机": [
+                "自己违规在先，反而摇下车窗大骂‘你会不会开车？找死啊！’（恶人先告状/情绪宣泄）",
+                "认为所有开得比他慢的都是白痴，开得比他快的都是疯子（自我中心谬误）"
+            ],
             "默认": [
                 "利用极其隐蔽的偷换概念，让对方在不知不觉中承认了自己没做过的事",
                 "强行制造一个非黑即白的虚假两难选择，逼迫对方就范"
@@ -197,6 +221,11 @@
                 primary: 'bg-red-600', hover: 'hover:bg-red-700', text: 'text-red-600', lightBg: 'bg-red-50', 
                 border: 'border-red-600', focus: 'focus:border-red-500', shadow: 'shadow-red-500/30', 
                 selectedItem: 'bg-red-100 text-red-900 shadow-[0_0_0_2px_#dc2626]', icon: '⚽', tabColor: 'text-red-700 border-red-600 bg-red-50'
+            },
+            quarrel: { 
+                primary: 'bg-orange-500', hover: 'hover:bg-orange-600', text: 'text-orange-600', lightBg: 'bg-orange-50', 
+                border: 'border-orange-500', focus: 'focus:border-orange-500', shadow: 'shadow-orange-500/30', 
+                selectedItem: 'bg-orange-100 text-orange-900 shadow-[0_0_0_2px_#f97316]', icon: '🔥', tabColor: 'text-orange-700 border-orange-500 bg-orange-50'
             }
         };
 
@@ -214,12 +243,19 @@
         };
 
         // --- 统一的 AI 调用函数 ---
-        const callAI = async (systemPrompt, messagesOrPrompt, modelConfig, jsonMode = false) => {
+        const callAI = async (systemPrompt, messagesOrPrompt, modelConfig, jsonMode = false, userApiKey = "") => {
             const { id: originalModel, apiKey, baseUrl, provider } = modelConfig;
+
+            // 优先使用用户输入的 API Key，否则使用内置配置中的 API Key
+            let finalKey = userApiKey || apiKey;
 
             if (provider === 'google' || originalModel.startsWith('gemini')) {
                 let model = originalModel;
-                const finalKey = (model === 'gemini-2.5-flash-preview-09-2025' && !apiKey) ? "" : apiKey;
+                
+                // 如果是需要 Key 的 Google 模型且用户没填，阻断并提示
+                if (!finalKey && model !== 'gemini-2.5-flash-preview-09-2025') {
+                    throw new Error("请在主页手动填写该 Google 模型的 API Key！");
+                }
                 
                 // 统一使用标准的 v1beta 接口
                 let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${finalKey}`;
@@ -252,7 +288,7 @@
                 try {
                     return await attemptFetch(url);
                 } catch (error) {
-                    // 如果 API 提示模型不存在，自动降级到默认稳定的 2.5 预览版模型进行重试，防止程序崩溃
+                    // 如果 API 提示模型不存在，自动降级到默认稳定的 2.5 预览版模型进行重试
                     if (error.message.includes('is not found') || error.message.includes('not supported')) {
                         console.warn(`Model ${model} API error (${error.message}). Falling back to default gemini-2.5-flash...`);
                         const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=`;
@@ -277,7 +313,7 @@
                 }
 
                 const payload = {
-                    model: originalModel, // 修复了这里：之前写成了未定义的 model 变量，现在使用 originalModel
+                    model: originalModel,
                     messages: openAiMessages,
                     temperature: 0.8,
                 };
@@ -290,7 +326,7 @@
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json', 
-                        'Authorization': `Bearer ${apiKey}` 
+                        'Authorization': `Bearer ${finalKey}` 
                     },
                     body: JSON.stringify(payload)
                 });
@@ -303,19 +339,21 @@
 
         function App() {
             const [appStage, setAppStage] = useState('home');
-            const [userType, setUserType] = useState('worker'); // 'worker'|'student'|'housewife'|'cfa'
+            const [userType, setUserType] = useState('worker'); // 'worker'|'student'|'housewife'|'cfa'|'quarrel'
             const [roleName, setRoleName] = useState(""); 
             const [extraInfo, setExtraInfo] = useState(""); 
             const [opponent, setOpponent] = useState("客户");
             const [difficulty, setDifficulty] = useState(2); 
             const [selectedModelId, setSelectedModelId] = useState(MODELS[0].id);
+            const [customApiKey, setCustomApiKey] = useState(""); // 新增：用户自定义的 API Key
 
             // 对手列表
             const opponentsMap = {
                 worker: ["客户", "老板", "下属", "平级管理层", "同事"],
                 student: ["老师", "同学", "父母"],
                 housewife: ["街市小贩", "孩子班主任", "熊孩子", "自家那熊孩子", "大丈夫"],
-                cfa: ["球迷", "球员"]
+                cfa: ["球迷", "球员"],
+                quarrel: ["网络喷子", "杠精网友", "催婚亲戚", "多管闲事邻居", "路怒症司机"]
             };
             
             const [storyData, setStoryData] = useState(null);
@@ -335,8 +373,6 @@
             const [currentRecordId, setCurrentRecordId] = useState(null);
             const [autoSaveStatus, setAutoSaveStatus] = useState("");
             
-            // 已按要求隐藏右下角的历史案卷按钮及相关UI，但保留底层保存逻辑
-
             const chatEndRef = useRef(null);
             const currentTheme = THEME_CONFIG[userType] || THEME_CONFIG.worker;
 
@@ -377,6 +413,7 @@
                 else if (userType === 'student') contextDesc = `【主角身份】：学生，年级是“${roleName}”。`;
                 else if (userType === 'housewife') contextDesc = `【主角身份】：家庭主妇/全职家长，自述是“${roleName}”。`;
                 else if (userType === 'cfa') contextDesc = `【主角身份】：中国足协工作人员，职位是“${roleName}”。`;
+                else if (userType === 'quarrel') contextDesc = `【主角身份】：遭遇无理争执或网络暴力的普通人，自述是“${roleName}”。`;
                 
                 if (extraInfo.trim()) {
                     contextDesc += `\n【近期背景/心境】：${extraInfo}`;
@@ -415,7 +452,7 @@
                 `;
 
                 try {
-                    const resultText = await callAI(systemPrompt, userPrompt, getCurrentModelConfig(), true);
+                    const resultText = await callAI(systemPrompt, userPrompt, getCurrentModelConfig(), true, customApiKey);
                     const newStory = parseSafeJSON(resultText);
                     setStoryData(newStory);
                 } catch (error) {
@@ -456,13 +493,13 @@
 
                 try {
                     const apiMessages = initialChatLog.map(msg => ({ role: msg.role, parts: [{ text: msg.apiContent || msg.content }] }));
-                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false);
+                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false, customApiKey);
                     const finalLog = [...initialChatLog, { role: 'model', content: resultText }];
                     setChatLog(finalLog);
                     autoSaveToSupabase(finalLog);
                 } catch (error) {
                     console.error(error);
-                    setChatLog([...initialChatLog, { role: 'model', content: `调用失败：${error.message}。请检查模型配置是否正确。` }]);
+                    setChatLog([...initialChatLog, { role: 'model', content: `调用失败：${error.message}。请检查 API 密钥或模型配置是否正确。` }]);
                 } finally {
                     setLoadingCritique(false);
                 }
@@ -481,13 +518,13 @@
 
                 try {
                     const apiMessages = updatedLog.map(msg => ({ role: msg.role, parts: [{ text: msg.apiContent || msg.content }] }));
-                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false);
+                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false, customApiKey);
                     const finalLog = [...updatedLog, { role: 'model', content: resultText }];
                     setChatLog(finalLog);
                     autoSaveToSupabase(finalLog);
                 } catch (error) {
                     console.error(error);
-                    setChatLog([...updatedLog, { role: 'model', content: `调用失败：${error.message}。请检查模型配置是否正确。` }]);
+                    setChatLog([...updatedLog, { role: 'model', content: `调用失败：${error.message}。请检查 API 密钥或模型配置是否正确。` }]);
                 } finally {
                     setLoadingCritique(false);
                 }
@@ -552,7 +589,7 @@
 
             const backToHome = () => {
                 setAppStage('home');
-                setStoryData(null);
+                // 注意：这里不再设置 setStoryData(null)，以保留历史对线记录，供“返回上一次对话”使用
             };
 
             // ==============================
@@ -594,6 +631,12 @@
                             >
                                 ⚽ 中国足协
                             </button>
+                            <button 
+                                onClick={() => setUserType('quarrel')}
+                                className={`flex-1 min-w-[120px] py-4 sm:py-5 text-sm sm:text-lg font-bold transition-colors border-b-2 ${userType === 'quarrel' ? THEME_CONFIG.quarrel.tabColor : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
+                            >
+                                🔥 吵架实战
+                            </button>
                         </div>
 
                         <div className="p-6 sm:p-8 space-y-8">
@@ -607,7 +650,8 @@
                                         userType === 'worker' ? "例如：新媒体运营、前端开发、客服主管..." : 
                                         userType === 'student' ? "例如：大二学生、高三理科生..." : 
                                         userType === 'housewife' ? "例如：全职妈妈、二胎宝妈、家庭主男..." : 
-                                        "例如：足协官员、赛事总监、青训主管..."
+                                        userType === 'cfa' ? "例如：足协官员、赛事总监、青训主管..." :
+                                        "例如：经常冲浪的网友、被催婚的单身青年、暴躁老哥..."
                                     }
                                     className={`w-full border-2 border-slate-200 rounded-xl p-3.5 focus:ring-0 outline-none transition-colors text-slate-700 ${currentTheme.focus}`}
                                     value={roleName}
@@ -624,7 +668,8 @@
                                         userType === 'worker' ? "例如：最近经常被要求无偿加班，而且负责的项目总是背锅..." : 
                                         userType === 'student' ? "例如：最近准备考研压力很大，还要面对家长的催促..." : 
                                         userType === 'housewife' ? "例如：孩子刚上小学，每天辅导作业鸡飞狗跳，去买菜还总被坑..." : 
-                                        "例如：国家队刚输给弱旅，舆论压力巨大，准备召开反思大会..."
+                                        userType === 'cfa' ? "例如：国家队刚输给弱旅，舆论压力巨大，准备召开反思大会..." :
+                                        "例如：刚发了一条客观评价某电影的帖子，结果引来一群极端粉丝围攻..."
                                     }
                                     className={`w-full border-2 border-slate-200 rounded-xl p-3.5 focus:ring-0 outline-none transition-colors text-slate-700 resize-none h-24 ${currentTheme.focus}`}
                                     value={extraInfo}
@@ -683,31 +728,55 @@
 
                             <div className="pt-4 border-t border-slate-100">
                                 <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">
-                                    5. 选择 AI 导师模型
+                                    5. 选择 AI 导师模型及配置
                                 </label>
-                                <select
-                                    className={`w-full border-2 border-slate-200 rounded-xl p-3 focus:ring-0 outline-none transition-colors text-slate-700 bg-slate-50 cursor-pointer font-medium ${currentTheme.focus}`}
-                                    value={selectedModelId}
-                                    onChange={(e) => setSelectedModelId(e.target.value)}
-                                >
-                                    {MODELS.map(m => (
-                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                    ))}
-                                </select>
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                    <select
+                                        className={`flex-1 border-2 border-slate-200 rounded-xl p-3 focus:ring-0 outline-none transition-colors text-slate-700 bg-slate-50 cursor-pointer font-medium ${currentTheme.focus}`}
+                                        value={selectedModelId}
+                                        onChange={(e) => setSelectedModelId(e.target.value)}
+                                    >
+                                        {MODELS.map(m => (
+                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                    <input 
+                                        type="password"
+                                        placeholder="输入自定义 API Key (按需填写)"
+                                        className={`flex-1 border-2 border-slate-200 rounded-xl p-3 focus:ring-0 outline-none transition-colors text-slate-700 ${currentTheme.focus}`}
+                                        value={customApiKey}
+                                        onChange={(e) => setCustomApiKey(e.target.value)}
+                                    />
+                                </div>
+                                {selectedModelId === 'gemini-3-flash-preview' && (
+                                    <p className="text-xs text-amber-600 mt-2 font-medium">⚠️ 提示：当前选择的 Google 模型没有内置密钥，请在右侧输入框手动输入你的 API Key 才能使用。</p>
+                                )}
                             </div>
 
                             {errorMsg && <div className="text-rose-500 text-sm font-medium text-center">{errorMsg}</div>}
                             
-                            <button 
-                                onClick={generateTargetedStory}
-                                className={`w-full py-4 rounded-2xl font-bold text-lg text-white shadow-lg transition-all ${
-                                    !roleName.trim() 
-                                    ? 'bg-slate-300 cursor-not-allowed' 
-                                    : `${currentTheme.primary} ${currentTheme.hover} ${currentTheme.shadow}`
-                                }`}
-                            >
-                                进入模拟器，生成对线剧本 🚀
-                            </button>
+                            <div className="flex flex-col gap-3">
+                                <button 
+                                    onClick={generateTargetedStory}
+                                    className={`w-full py-4 rounded-2xl font-bold text-lg text-white shadow-lg transition-all ${
+                                        !roleName.trim() 
+                                        ? 'bg-slate-300 cursor-not-allowed' 
+                                        : `${currentTheme.primary} ${currentTheme.hover} ${currentTheme.shadow}`
+                                    }`}
+                                >
+                                    进入模拟器，生成新剧本 🚀
+                                </button>
+                                
+                                {/* 新增：返回上一次对话按钮 */}
+                                {storyData && (
+                                    <button 
+                                        onClick={() => setAppStage('training')}
+                                        className="w-full py-4 rounded-2xl font-bold text-lg bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                                    >
+                                        返回上一次对话 🔙
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -732,8 +801,9 @@
                 return (
                     <div className="max-w-6xl mx-auto flex flex-col gap-6 animate-[fadeIn_0.4s_ease-out] mt-6">
                         <div className="flex items-center justify-between bg-white px-6 py-4 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-slate-100">
+                            {/* 修改：将“返回重新设定”文案改为“主页” */}
                             <button onClick={backToHome} className="text-slate-400 hover:text-slate-700 font-medium flex items-center gap-2 transition-colors">
-                                <span>←</span> 返回重新设定
+                                <span>←</span> 主页
                             </button>
                             
                             <div className="flex items-center gap-4">
