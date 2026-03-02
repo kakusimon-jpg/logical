@@ -370,7 +370,7 @@
             const [appStage, setAppStage] = useState('home');
             const [userType, setUserType] = useState('worker');
             const [roleName, setRoleName] = useState(""); 
-            const [nickname, setNickname] = useState(""); // 新增：用户昵称
+            const [nickname, setNickname] = useState(""); 
             const [extraInfo, setExtraInfo] = useState(""); 
             const [opponent, setOpponent] = useState("客户");
             const [difficulty, setDifficulty] = useState(2); 
@@ -422,10 +422,14 @@
 
             const getCurrentModelConfig = () => MODELS.find(m => m.id === selectedModelId) || MODELS[0];
 
-            const getBilingualRule = () => {
-                return languageMode === 'bilingual' 
-                    ? "\n\n【⚠️核心格式强制要求】：用户开启了双语学习模式。你的所有输出必须是严格的中英双语！每写完一段中文，必须**在同一个文本字符串内**紧接着提供对应的英文翻译，并且**绝对要将英文内容包裹在 [ENG] 和 [/ENG] 标签中**。**切勿因为翻译而破坏原有的 JSON 键值对结构**！例如：\"这是中文部分。[ENG]This is the English part.[/ENG]\""
-                    : "";
+            // 根据是否是 JSON 生成阶段动态调整双语指令
+            const getBilingualRule = (isJson = false) => {
+                if (languageMode !== 'bilingual') return "";
+                if (isJson) {
+                    return "\n\n【⚠️核心格式强制要求】：用户开启了双语学习模式。你的所有输出必须是严格的中英双语！每写完一段中文，必须**在同一个文本字符串内**紧接着提供对应的英文翻译，并且**绝对要将英文内容包裹在 [ENG] 和 [/ENG] 标签中**。**切勿因为翻译而破坏原有的 JSON 键值对结构或随意换行**！例如：\"这是中文部分。[ENG]This is the English part.[/ENG]\"";
+                } else {
+                    return "\n\n【⚠️核心格式强制要求】：用户开启了双语学习模式。你的所有回复必须是严格的中英双语格式！请先输出中文，然后紧接着在下一行提供对应的英文翻译，并且**绝对要将英文内容包裹在 [ENG] 和 [/ENG] 标签中**。例如：\n这是中文部分。\n[ENG]This is the English part.[/ENG]";
+                }
             };
 
             const autoSaveToSupabase = async (currentLog) => {
@@ -490,7 +494,7 @@
                 setAppStage('training'); 
 
                 const randomTheme = getRandomTheme(opponent);
-                let systemPrompt = `你是一个深谙逻辑学、行为心理学以及当代职场/社会关系潜规则的顶尖中文导师。你需要编写用于训练大众逻辑思维的短小情境题。` + getBilingualRule();
+                let systemPrompt = `你是一个深谙逻辑学、行为心理学以及当代职场/社会关系潜规则的顶尖中文导师。你需要编写用于训练大众逻辑思维的短小情境题。` + getBilingualRule(true);
                 
                 let contextDesc = "";
                 if (userType === 'worker') contextDesc = `【主角身份】：打工人，职业是“${roleName}”。`;
@@ -553,7 +557,7 @@
                 setChatPhase('analyzing');
 
                 const addressUserAs = nickname.trim() ? nickname.trim() : "您";
-                let systemPrompt = `你是一个深谙逻辑学和沟通技巧的中文导师。你正在辅导用户拆解一段【逻辑陷阱】。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要像真实的导师一样亲切自然，绝对不要使用第三人称（如“这位用户”）。` + getBilingualRule();
+                let systemPrompt = `你是一个深谙逻辑学和沟通技巧的中文导师。你正在辅导用户拆解一段【逻辑陷阱】。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要像真实的导师一样亲切自然，绝对不要使用第三人称（如“这位用户”）。` + getBilingualRule(false);
                 const cleanSentence = storyData.content[selectedSentence].replace(/\[\/?ENG\]/g, ''); 
                 
                 const apiContextPrompt = `
@@ -587,7 +591,7 @@
             const generateHeadOn = async () => {
                 setChatPhase('generating_head_on');
                 const addressUserAs = nickname.trim() ? nickname.trim() : "您";
-                let systemPrompt = `你是一个深谙逻辑学和沟通技巧的中文导师。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要亲切自然，不要使用第三人称。` + getBilingualRule();
+                let systemPrompt = `你是一个深谙逻辑学和沟通技巧的中文导师。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要亲切自然，不要使用第三人称。` + getBilingualRule(false);
                 
                 const actionPrompt = `太棒了。现在请基于刚才的点评，为用户提供【高明应对示范 1：正面硬刚式】。
 要求：四平八稳地指出对方逻辑漏洞，不卑不亢地直接反驳对方，给出具体的话术示范。不要生成其它多余内容。`;
@@ -611,7 +615,7 @@
             const generateHighEq = async () => {
                 setChatPhase('generating_high_eq');
                 const addressUserAs = nickname.trim() ? nickname.trim() : "您";
-                let systemPrompt = `你是一个深谙逻辑学和沟通技巧的中文导师。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要亲切自然，不要使用第三人称。` + getBilingualRule();
+                let systemPrompt = `你是一个深谙逻辑学和沟通技巧的中文导师。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要亲切自然，不要使用第三人称。` + getBilingualRule(false);
                 
                 const actionPrompt = `很好。现在请继续提供【高明应对示范 2：高情商回复式】。
 要求：展现极高的情商，不卑不亢，既能巧妙化解对方的逻辑陷阱，又能照顾到双方的面子，引导对话走向建设性方向，给出温和但坚定的话术示范。结尾引导用户继续自由发问或探讨。`;
@@ -635,14 +639,17 @@
             const handleSendReply = async () => {
                 if (!replyText.trim() || chatPhase.includes('generating')) return;
                 
-                const newUserMsg = { role: 'user', content: replyText };
+                // 在底层附加针对多轮对话的强制双语提醒，防止模型在长上下文中遗忘规则
+                const newUserApiContent = replyText + (languageMode === 'bilingual' ? "\n\n(系统强制要求：接下来的回复请务必继续保持中英双语格式，英文必须用[ENG]...[/ENG]包裹)" : "");
+                
+                const newUserMsg = { role: 'user', content: replyText, apiContent: newUserApiContent };
                 const updatedLog = [...chatLog, newUserMsg];
                 setChatLog(updatedLog);
                 setReplyText("");
                 setChatPhase('generating_free_chat');
 
                 const addressUserAs = nickname.trim() ? nickname.trim() : "您";
-                const systemPrompt = `你是一个深谙逻辑学与沟通技巧的中文导师。像真实的聊天一样回应用户的探讨，必要时提供应对建议。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要亲切自然，不要使用第三人称。` + getBilingualRule();
+                const systemPrompt = `你是一个深谙逻辑学与沟通技巧的中文导师。像真实的聊天一样回应用户的探讨，必要时提供应对建议。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要亲切自然，不要使用第三人称。` + getBilingualRule(false);
 
                 try {
                     const apiMessages = updatedLog.map(msg => ({ role: msg.role, parts: [{ text: msg.apiContent || msg.content }] }));
@@ -919,7 +926,7 @@
                                     <div className="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col h-[700px] animate-[fadeIn_0.4s_ease-out]">
                                         <div className={`px-6 py-4 border-b border-slate-100 rounded-t-3xl flex items-center justify-between ${currentTheme.lightBg}`}>
                                             <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                                <span className="text-xl">🎓</span> 导师深度探讨室
+                                                <span className="text-xl">🎓</span> {getCurrentModelConfig().name} 导师深度探讨室
                                             </h3>
                                             <button onClick={resetInteraction} className="text-xs text-slate-500 hover:text-slate-800 bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
                                                 结束探讨
