@@ -69,14 +69,34 @@
                 id: 'gemini-3-flash-preview', 
                 name: 'Gemini 3.0 Flash Preview',
                 provider: 'google',
-                apiKey: '', // 已完全删除内置 API Key，要求用户留空并自行输入
+                apiKey: '', // 用户自行输入
+                baseUrl: ''
+            },
+            {
+                id: 'gemini-2.5-flash-preview-09-2025',
+                name: 'Gemini 2.5 Flash Preview (免Key)',
+                provider: 'google',
+                apiKey: '',
                 baseUrl: ''
             }
         ];
 
+        // --- 逻辑谬误类型库 ---
+        const FALLACY_TYPES = [
+            "随机 (默认)",
+            "滑坡谬误 (Slippery Slope)",
+            "偷换概念 / 稻草人 (Equivocation / Straw Man)",
+            "人身攻击 (Ad Hominem)",
+            "虚假两难 (False Dilemma)",
+            "诉诸群众 / 从众 (Appeal to Popularity)",
+            "诉诸伪善 / 你也一样 (Tu Quoque)",
+            "诉诸情感 / 道德绑架 (Appeal to Emotion)",
+            "以偏概全 (Hasty Generalization)",
+            "错把先后当因果 (Post Hoc)"
+        ];
+
         // --- 动态随机冲突主题库（打破AI思维定势） ---
         const RANDOM_THEMES = {
-            // 打工人篇
             "客户": [
                 "推卸自身操作不当的责任，反咬产品质量（推卸责任/甩锅）",
                 "拿毫无可比性的极低端竞品价格来恶意压价（错误类比/不当对比）",
@@ -93,7 +113,6 @@
                 "用'大家都是这么做的'或者'以前一直都是这样'来拒绝优化不合理的旧流程（诉诸传统/大众）",
                 "将团队的共同功劳悄悄包装成他个人的英明决策，面对质疑时又顾左右而言他"
             ],
-            // 学生篇
             "父母": [
                 "将你生活中的一切不如意（如感冒、工作不顺）都强行归结于'你经常玩手机'（虚假因果）",
                 "用'我吃过的盐比你吃过的米还多'来压制你基于现代科学的合理建议（诉诸权威）",
@@ -103,7 +122,6 @@
                 "仅凭一次成绩没考好，就断言这个学生'以后绝对考不上大学、没有前途'（滑坡谬误/以偏概全）",
                 "用'一个巴掌拍不响'来处理校园冲突，强行让被欺负的学生也承担责任（各打五十大板/伪中立）"
             ],
-            // 家庭主妇篇
             "街市小贩": [
                 "缺斤少两被发现后，用'我平时多给你算你怎么不说'来偷换概念转移话题",
                 "卖坏水果不退，说'别人买怎么都没事，就你事多'（诉诸群众/人身攻击）",
@@ -124,12 +142,16 @@
                 "要买昂贵玩具被拒，反呛'同学都有，就你们没钱'（诉诸群众/人身攻击）",
                 "作业写不完，怪家长'谁让你们给我报那么多班'（错误归因/因果倒置）"
             ],
-            "大丈夫": [
+            "老公": [
                 "下班回家葛优瘫，指责做了一天家务的妻子'你一天到晚在家闲着，连个饭都做不好'（无视事实/抹杀贡献）",
                 "把丧偶式育儿合理化：'我在外面赚钱养家，家里这些鸡毛蒜皮当然归你管'（虚假两难/刻板印象）",
                 "忘记结婚纪念日，反而怪妻子'老夫老妻了还整这些虚头巴脑的干嘛'（转移话题/贬低诉求）"
             ],
-            // 中国足协篇
+            "老婆": [
+                "以‘如果你爱我，你就应该懂我在想什么’为由，进行情感勒索并拒绝沟通（读心术谬误/情感勒索）",
+                "拿闺蜜的有钱老公进行不当对比，彻底否定你的日常努力与付出（错误类比/拉踩贬低）",
+                "当你试图讲事实摆道理时，直接用‘你居然敢吼我？你态度有问题！’来转移话题（转移焦点/诉诸情感）"
+            ],
             "球迷": [
                 "用'既然你们连这种弱队都赢不了，干脆解散算了'进行极端情绪化表达（极端非黑即白/滑坡谬误）",
                 "拿几十年前的一场偶然胜利，来证明现在的战术或者用人完全错误（错误类比/刻舟求剑）",
@@ -140,7 +162,6 @@
                 "抱怨'天气不好/场地太差'导致输球，却无视对手在同等条件下的表现（双重标准/借口）",
                 "认为'既然被骂得这么惨，我们在国家队随便踢踢就行了，反正赢不了'（消极摆烂/不相干推论）"
             ],
-            // 吵架实战篇 (新增)
             "网络喷子": [
                 "完全无视你提供的事实证据，直接对你进行恶毒的人身攻击和贴标签（人身攻击/扣帽子）",
                 "故意曲解你的原话，竖起一个你根本没说过的观点进行疯狂输出（稻草人谬误）",
@@ -176,31 +197,15 @@
             return themes[randomIndex];
         };
 
-        // --- 俏皮话文案库 ---
         const LOADING_QUOTES = [
             "AI 导师正在活动筋骨...",
             "正在为您从浩瀚的奇葩语录中捞取素材...",
             "对方正在输入一堆不讲理的话...",
             "逻辑防御盾已启动，正在合成攻击剧情...",
             "请坐稳，马上为您接入无理取闹现场...",
-            "正在为您连线一位高血压级别的对手...",
-            "剧本构思中：怎样才能气到你？",
-            "正在疯狂翻阅《人类早期智熄言论大全》...",
-            "即将抵达修罗场，请检查您的降压药...",
-            "正在加载对方的诡辩技巧...",
-            "导师正在为您量身定制一口天降大锅...",
-            "正在把黑的说成白的...",
-            "正在收集各种毫无逻辑的奇葩言论...",
-            "CPU正在高速运转，试图理解人类的多样性...",
-            "正在为您匹配一位极其难缠的选手...",
-            "对方的甩锅技能正在读条...",
-            "正在精心熬制一碗毒鸡汤...",
-            "正在为您寻找一位逻辑鬼才...",
-            "道德绑架技能正在充能...",
-            "即将为您表演一个魔法打败魔法..."
+            "正在为您连线一位高血压级别的对手..."
         ];
 
-        // --- UI 主题配置引擎 ---
         const THEME_CONFIG = {
             worker: { 
                 primary: 'bg-indigo-600', hover: 'hover:bg-indigo-700', text: 'text-indigo-600', lightBg: 'bg-indigo-50', 
@@ -229,7 +234,6 @@
             }
         };
 
-        // --- 健壮的 JSON 解析器 ---
         const parseSafeJSON = (text) => {
             try {
                 const marker = '`' + '`' + '`';
@@ -242,24 +246,17 @@
             }
         };
 
-        // --- 统一的 AI 调用函数 ---
         const callAI = async (systemPrompt, messagesOrPrompt, modelConfig, jsonMode = false, userApiKey = "") => {
             const { id: originalModel, apiKey, baseUrl, provider } = modelConfig;
-
-            // 优先使用用户输入的 API Key，否则使用内置配置中的 API Key
             let finalKey = userApiKey || apiKey;
 
             if (provider === 'google' || originalModel.startsWith('gemini')) {
                 let model = originalModel;
-                
-                // 如果是需要 Key 的 Google 模型且用户没填，阻断并提示
                 if (!finalKey && model !== 'gemini-2.5-flash-preview-09-2025') {
                     throw new Error("请在主页手动填写该 Google 模型的 API Key！");
                 }
                 
-                // 统一使用标准的 v1beta 接口
                 let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${finalKey}`;
-                
                 const contents = Array.isArray(messagesOrPrompt) 
                     ? messagesOrPrompt 
                     : [{ role: 'user', parts: [{ text: messagesOrPrompt }] }];
@@ -269,9 +266,7 @@
                     contents: contents
                 };
                 
-                if (jsonMode) {
-                    payload.generationConfig = { responseMimeType: "application/json" };
-                }
+                if (jsonMode) payload.generationConfig = { responseMimeType: "application/json" };
 
                 const attemptFetch = async (fetchUrl) => {
                     const response = await fetch(fetchUrl, {
@@ -279,7 +274,6 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-                    
                     const data = await response.json();
                     if (data.error) throw new Error(data.error.message || "Gemini API Error");
                     return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -288,70 +282,107 @@
                 try {
                     return await attemptFetch(url);
                 } catch (error) {
-                    // 如果 API 提示模型不存在，自动降级到默认稳定的 2.5 预览版模型进行重试
                     if (error.message.includes('is not found') || error.message.includes('not supported')) {
-                        console.warn(`Model ${model} API error (${error.message}). Falling back to default gemini-2.5-flash...`);
                         const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=`;
                         return await attemptFetch(fallbackUrl);
                     }
                     throw error;
                 }
             } else {
-                const openAiMessages = [
-                    { role: "system", content: systemPrompt }
-                ];
-
+                const openAiMessages = [{ role: "system", content: systemPrompt }];
                 if (Array.isArray(messagesOrPrompt)) {
-                    messagesOrPrompt.forEach(m => {
-                        openAiMessages.push({
-                            role: m.role === 'model' ? 'assistant' : 'user',
-                            content: m.parts[0].text
-                        });
-                    });
+                    messagesOrPrompt.forEach(m => openAiMessages.push({ role: m.role === 'model' ? 'assistant' : 'user', content: m.parts[0].text }));
                 } else {
                     openAiMessages.push({ role: "user", content: messagesOrPrompt });
                 }
 
-                const payload = {
-                    model: originalModel,
-                    messages: openAiMessages,
-                    temperature: 0.8,
-                };
-                
-                if (jsonMode) {
-                    payload.response_format = { type: "json_object" };
-                }
+                const payload = { model: originalModel, messages: openAiMessages, temperature: 0.8 };
+                if (jsonMode) payload.response_format = { type: "json_object" };
 
                 const response = await fetch(`${baseUrl}/chat/completions`, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json', 
-                        'Authorization': `Bearer ${finalKey}` 
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${finalKey}` },
                     body: JSON.stringify(payload)
                 });
-                
                 const data = await response.json();
                 if (data.error) throw new Error(data.error.message || "OpenAI API Error");
                 return data.choices?.[0]?.message?.content || "";
             }
         };
 
+        // --- 核心工具：中英双语混合文本渲染器与 TTS ---
+        const renderBilingualText = (text, themeColor = 'indigo') => {
+            if (!text) return null;
+            const regex = /\[ENG\]([\s\S]*?)\[\/ENG\]/g;
+            const parts = [];
+            let lastIndex = 0;
+            let match;
+
+            while ((match = regex.exec(text)) !== null) {
+                if (match.index > lastIndex) {
+                    parts.push({ type: 'zh', content: text.substring(lastIndex, match.index).trim() });
+                }
+                parts.push({ type: 'en', content: match[1].trim() });
+                lastIndex = regex.lastIndex;
+            }
+            if (lastIndex < text.length) {
+                const remaining = text.substring(lastIndex).trim();
+                if (remaining) parts.push({ type: 'zh', content: remaining });
+            }
+
+            if (parts.length === 0 || parts.every(p => p.type === 'zh')) {
+                return <span>{text.replace(/\[\/?ENG\]/g, '')}</span>;
+            }
+
+            return (
+                <div className="space-y-2 mt-1">
+                    {parts.map((p, i) => (
+                        p.type === 'zh' ? (
+                            <div key={i} className="whitespace-pre-wrap">{p.content}</div>
+                        ) : (
+                            <div key={i} className={`relative p-3 bg-${themeColor}-50/50 rounded-xl text-${themeColor}-900/80 font-serif italic flex items-start gap-3 border border-${themeColor}-100/50 shadow-sm my-2`}>
+                                <span className="flex-1 whitespace-pre-wrap leading-relaxed text-[15px]">{p.content}</span>
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.speechSynthesis) {
+                                            window.speechSynthesis.cancel();
+                                            const u = new SpeechSynthesisUtterance(p.content);
+                                            u.lang = 'en-US';
+                                            window.speechSynthesis.speak(u);
+                                        }
+                                    }} 
+                                    className={`flex-shrink-0 text-${themeColor}-400 hover:text-${themeColor}-600 bg-white p-2 rounded-full shadow-sm hover:shadow transition-all`}
+                                    title="朗读英文 (Read aloud)"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256">
+                                      <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm36.44-94.66-48-32A8,8,0,0,0,104,96v64a8,8,0,0,0,12.44,6.66l48-32a8,8,0,0,0,0-13.32ZM120,145.05V111l25.58,17Z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        )
+                    ))}
+                </div>
+            );
+        };
+
         function App() {
             const [appStage, setAppStage] = useState('home');
-            const [userType, setUserType] = useState('worker'); // 'worker'|'student'|'housewife'|'cfa'|'quarrel'
+            const [userType, setUserType] = useState('worker');
             const [roleName, setRoleName] = useState(""); 
+            const [nickname, setNickname] = useState(""); // 新增：用户昵称
             const [extraInfo, setExtraInfo] = useState(""); 
             const [opponent, setOpponent] = useState("客户");
             const [difficulty, setDifficulty] = useState(2); 
+            const [selectedFallacy, setSelectedFallacy] = useState(FALLACY_TYPES[0]);
+            const [languageMode, setLanguageMode] = useState("zh"); 
             const [selectedModelId, setSelectedModelId] = useState(MODELS[0].id);
-            const [customApiKey, setCustomApiKey] = useState(""); // 新增：用户自定义的 API Key
+            const [customApiKey, setCustomApiKey] = useState("");
 
-            // 对手列表
             const opponentsMap = {
                 worker: ["客户", "老板", "下属", "平级管理层", "同事"],
                 student: ["老师", "同学", "父母"],
-                housewife: ["街市小贩", "孩子班主任", "熊孩子", "自家那熊孩子", "大丈夫"],
+                housewife: ["街市小贩", "孩子班主任", "熊孩子", "自家那熊孩子", "老公", "老婆"],
                 cfa: ["球迷", "球员"],
                 quarrel: ["网络喷子", "杠精网友", "催婚亲戚", "多管闲事邻居", "路怒症司机"]
             };
@@ -364,25 +395,25 @@
             const [chatLog, setChatLog] = useState([]);
             const [replyText, setReplyText] = useState("");
             
+            const [chatPhase, setChatPhase] = useState('idle');
+            
             const [loadingStory, setLoadingStory] = useState(false);
             const [loadingQuote, setLoadingQuote] = useState("");
-            const [loadingCritique, setLoadingCritique] = useState(false);
             const [errorMsg, setErrorMsg] = useState("");
 
-            // 自动保存与历史记录状态
             const [currentRecordId, setCurrentRecordId] = useState(null);
             const [autoSaveStatus, setAutoSaveStatus] = useState("");
             
             const chatEndRef = useRef(null);
             const currentTheme = THEME_CONFIG[userType] || THEME_CONFIG.worker;
+            const themeColorName = currentTheme.primary.split('-')[1] || 'indigo'; 
 
             useEffect(() => {
                 if (chatEndRef.current) {
                     chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
                 }
-            }, [chatLog, loadingCritique]);
+            }, [chatLog, chatPhase]);
 
-            // 切换分类时，重置对手与角色名占位
             useEffect(() => {
                 setOpponent(opponentsMap[userType][0]);
                 setRoleName("");
@@ -391,146 +422,12 @@
 
             const getCurrentModelConfig = () => MODELS.find(m => m.id === selectedModelId) || MODELS[0];
 
-            // --- 核心功能 1：生成动态不重复故事 ---
-            const generateTargetedStory = async () => {
-                if (!roleName.trim()) {
-                    setErrorMsg("请先输入你的具体身份！");
-                    return;
-                }
-
-                setLoadingStory(true);
-                setLoadingQuote(LOADING_QUOTES[Math.floor(Math.random() * LOADING_QUOTES.length)]);
-                setErrorMsg("");
-                resetInteraction();
-                setCurrentRecordId(null); 
-                setAppStage('training'); 
-
-                const randomTheme = getRandomTheme(opponent);
-                const systemPrompt = `你是一个深谙逻辑学、行为心理学以及当代职场/社会关系潜规则的顶尖中文导师。你需要编写用于训练大众逻辑思维的短小情境题。`;
-                
-                let contextDesc = "";
-                if (userType === 'worker') contextDesc = `【主角身份】：打工人，职业是“${roleName}”。`;
-                else if (userType === 'student') contextDesc = `【主角身份】：学生，年级是“${roleName}”。`;
-                else if (userType === 'housewife') contextDesc = `【主角身份】：家庭主妇/全职家长，自述是“${roleName}”。`;
-                else if (userType === 'cfa') contextDesc = `【主角身份】：中国足协工作人员，职位是“${roleName}”。`;
-                else if (userType === 'quarrel') contextDesc = `【主角身份】：遭遇无理争执或网络暴力的普通人，自述是“${roleName}”。`;
-                
-                if (extraInfo.trim()) {
-                    contextDesc += `\n【近期背景/心境】：${extraInfo}`;
-                }
-                contextDesc += `\n【对话对手】：${opponent}。`;
-
-                let diffDesc = "";
-                if (difficulty === 1) {
-                    diffDesc = "【难度：青铜】逻辑漏洞极其低级、生硬，明显不讲理（如直接的人身攻击、粗暴的以偏概全）。";
-                } else if (difficulty === 2) {
-                    diffDesc = "【难度：白银】逻辑漏洞隐藏在日常正常的沟通话术中，具有较强迷惑性，属于经典的诡辩。";
-                } else {
-                    diffDesc = "【难度：王者】逻辑漏洞**极其隐蔽**！对方的话术要听起来**无比合理、滴水不漏，甚至仿佛全是在为你考虑，带有高级PUA、情感勒索或极强的推卸责任性质**，极难一眼看破。";
-                }
-
-                const userPrompt = `
-                    请根据以下设定，编写一段简短的对话或情境（3-5句话）：
-                    ${contextDesc}
-                    ${diffDesc}
-                    
-                    【🚨核心强制要求：避免重复套路🚨】：
-                    为了防止每次生成的剧本都是老套路，本次请**强制围绕以下具体的方向**来构建冲突剧本：
-                    👉 核心切入点：【 ${randomTheme} 】 👈
-                    请确保剧本具有高度的真实感、沉浸感，并且非常符合该身份的社会语境。
-                    
-                    请故意在其中的**一句话**里，设置符合上述要求的逻辑谬误。
-                    
-                    请严格返回以下JSON格式：
-                    {
-                        "title": "故事标题（如：菜市场的缺斤少两风波）",
-                        "content": ["句子1", "句子2", "句子3", "句子4"],
-                        "flawIndex": 2, // 存在逻辑谬误的句子索引（从0开始）
-                        "fallacyName": "谬误的学名（包含中英文）",
-                        "explanation": "详细解释为什么这句话犯了这个谬误，以及如何反驳"
-                    }
-                `;
-
-                try {
-                    const resultText = await callAI(systemPrompt, userPrompt, getCurrentModelConfig(), true, customApiKey);
-                    const newStory = parseSafeJSON(resultText);
-                    setStoryData(newStory);
-                } catch (error) {
-                    console.error("生成故事失败:", error);
-                    setErrorMsg(`生成剧本失败 (${getCurrentModelConfig().name})：${error.message}`);
-                    setAppStage('home'); 
-                } finally {
-                    setLoadingStory(false);
-                }
+            const getBilingualRule = () => {
+                return languageMode === 'bilingual' 
+                    ? "\n\n【⚠️核心格式强制要求】：用户开启了双语学习模式。你的所有输出必须是严格的中英双语！每写完一段中文，必须**在同一个文本字符串内**紧接着提供对应的英文翻译，并且**绝对要将英文内容包裹在 [ENG] 和 [/ENG] 标签中**。**切勿因为翻译而破坏原有的 JSON 键值对结构**！例如：\"这是中文部分。[ENG]This is the English part.[/ENG]\""
+                    : "";
             };
 
-            // --- 核心功能 2 & 3：对话与点评 ---
-            const startChatCritique = async () => {
-                if (selectedSentence === null || !userReason.trim()) return;
-                setLoadingCritique(true);
-
-                const systemPrompt = "你是一个深谙逻辑学和沟通技巧的中文导师，语言平易近人、幽默、一针见血。你正在辅导用户拆解一段【逻辑陷阱】并教授实战回怼技巧。";
-                const apiContextPrompt = `
-                    【难度等级】：${difficulty === 1 ? '初级' : difficulty === 2 ? '中级' : '高级（极难发现）'}
-                    【背景句子】：${storyData.content[selectedSentence]}
-                    【该句的标准谬误】：${selectedSentence === storyData.flawIndex ? storyData.fallacyName : "此句其实没有明显的逻辑谬误"}
-                    【标准解析】：${selectedSentence === storyData.flawIndex ? storyData.explanation : "无"}
-                    【用户的初始拆解理由】：${userReason}
-                    
-                    请执行以下任务：
-                    1. 【点评拆解】：
-                        - 若选错：委婉指出，并解释为何没毛病。
-                        - 若选对：评价其理由是否切中要害。如果是高级难度，请夸奖用户的敏锐。
-                    2. 【高明应对示范】（必须包含以下两种风格的回怼语示范）：
-                        - 🛡️ 正面硬刚式：四平八稳地指出对方逻辑漏洞，不卑不亢地反驳（示范具体话术）。
-                        - 🗡️ 剑走偏锋式：借力打力，顺着对方的荒谬逻辑推导出更荒谬的结论，或用魔法打败魔法（示范具体话术）。
-
-                    语气要启发式，直接对用户说话，排版要清晰易读。结尾引导用户继续发问或探讨。
-                `;
-
-                const initialChatLog = [{ role: 'user', content: userReason, apiContent: apiContextPrompt }];
-                setChatLog(initialChatLog);
-
-                try {
-                    const apiMessages = initialChatLog.map(msg => ({ role: msg.role, parts: [{ text: msg.apiContent || msg.content }] }));
-                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false, customApiKey);
-                    const finalLog = [...initialChatLog, { role: 'model', content: resultText }];
-                    setChatLog(finalLog);
-                    autoSaveToSupabase(finalLog);
-                } catch (error) {
-                    console.error(error);
-                    setChatLog([...initialChatLog, { role: 'model', content: `调用失败：${error.message}。请检查 API 密钥或模型配置是否正确。` }]);
-                } finally {
-                    setLoadingCritique(false);
-                }
-            };
-
-            const handleSendReply = async () => {
-                if (!replyText.trim() || loadingCritique) return;
-                
-                const newUserMsg = { role: 'user', content: replyText };
-                const updatedLog = [...chatLog, newUserMsg];
-                setChatLog(updatedLog);
-                setReplyText("");
-                setLoadingCritique(true);
-
-                const systemPrompt = "你是一个深谙逻辑学与沟通技巧的中文导师。像真实的聊天一样，简短有力地回应用户的探讨或质疑，必要时继续提供应对和回怼的建议。";
-
-                try {
-                    const apiMessages = updatedLog.map(msg => ({ role: msg.role, parts: [{ text: msg.apiContent || msg.content }] }));
-                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false, customApiKey);
-                    const finalLog = [...updatedLog, { role: 'model', content: resultText }];
-                    setChatLog(finalLog);
-                    autoSaveToSupabase(finalLog);
-                } catch (error) {
-                    console.error(error);
-                    setChatLog([...updatedLog, { role: 'model', content: `调用失败：${error.message}。请检查 API 密钥或模型配置是否正确。` }]);
-                } finally {
-                    setLoadingCritique(false);
-                }
-            };
-
-            // --- 核心功能 4：自动保存与历史案卷读取 ---
             const autoSaveToSupabase = async (currentLog) => {
                 if (!storyData) return;
                 setAutoSaveStatus("saving");
@@ -579,118 +476,251 @@
                 }
             };
 
+            const generateTargetedStory = async () => {
+                if (!roleName.trim()) {
+                    setErrorMsg("请先输入您的具体身份！");
+                    return;
+                }
+
+                setLoadingStory(true);
+                setLoadingQuote(LOADING_QUOTES[Math.floor(Math.random() * LOADING_QUOTES.length)]);
+                setErrorMsg("");
+                resetInteraction();
+                setCurrentRecordId(null); 
+                setAppStage('training'); 
+
+                const randomTheme = getRandomTheme(opponent);
+                let systemPrompt = `你是一个深谙逻辑学、行为心理学以及当代职场/社会关系潜规则的顶尖中文导师。你需要编写用于训练大众逻辑思维的短小情境题。` + getBilingualRule();
+                
+                let contextDesc = "";
+                if (userType === 'worker') contextDesc = `【主角身份】：打工人，职业是“${roleName}”。`;
+                else if (userType === 'student') contextDesc = `【主角身份】：学生，年级是“${roleName}”。`;
+                else if (userType === 'housewife') contextDesc = `【主角身份】：家庭主妇/全职家长，自述是“${roleName}”。`;
+                else if (userType === 'cfa') contextDesc = `【主角身份】：中国足协工作人员，职位是“${roleName}”。`;
+                else if (userType === 'quarrel') contextDesc = `【主角身份】：遭遇无理争执或网络暴力的普通人，自述是“${roleName}”。`;
+                
+                if (extraInfo.trim()) contextDesc += `\n【近期背景/心境】：${extraInfo}`;
+                contextDesc += `\n【对话对手】：${opponent}。`;
+
+                let diffDesc = "";
+                if (difficulty === 1) diffDesc = "【难度：青铜】逻辑漏洞极其低级、生硬，明显不讲理。";
+                else if (difficulty === 2) diffDesc = "【难度：白银】逻辑漏洞隐藏在日常正常的沟通话术中，具有较强迷惑性。";
+                else diffDesc = "【难度：王者】逻辑漏洞极其隐蔽！对方的话术要听起来无比合理、滴水不漏，极难一眼看破。";
+
+                let fallacyInstruction = selectedFallacy === "随机 (默认)"
+                    ? "请故意在其中的**一句话**里，随机设置一个符合上述难度和情境的逻辑谬误。"
+                    : `👉 【强制核心要求】：本故事必须且只能包含【${selectedFallacy}】这一种逻辑谬误，且必须非常典型！ 👈`;
+
+                const userPrompt = `
+                    请根据以下设定，编写一段简短的对话或情境（3-5句话）：
+                    ${contextDesc}
+                    ${diffDesc}
+                    核心切入点：【 ${randomTheme} 】
+                    ${fallacyInstruction}
+                    
+                    【⚠️标题要求】：请注意，故事的标题（title）必须是一个自然、普通的场景短文名称，**绝对不能在标题中直接暴露或暗示逻辑谬误的名称**（例如不能取名为《客户的“滑坡”式要求》）。
+                    
+                    请严格返回以下JSON格式（如果开启双语模式，所有的中英双语内容必须合并在同一个双引号字符串内部，用 [ENG]...[/ENG] 区分）：
+                    {
+                        "title": "普通的场景标题 [ENG]Normal Scene Title[/ENG]",
+                        "content": [
+                            "第一句话的内容 [ENG]First sentence[/ENG]",
+                            "第二句话的内容 [ENG]Second sentence[/ENG]",
+                            "第三句话的内容 [ENG]Third sentence[/ENG]",
+                            "第四句话的内容 [ENG]Fourth sentence[/ENG]"
+                        ],
+                        "flawIndex": 2, // 存在逻辑谬误的句子索引（从0开始）
+                        "fallacyName": "谬误的学名 [ENG]Fallacy Name[/ENG]",
+                        "explanation": "详细解释为什么这句话犯了这个谬误 [ENG]Explanation[/ENG]"
+                    }
+                `;
+
+                try {
+                    const resultText = await callAI(systemPrompt, userPrompt, getCurrentModelConfig(), true, customApiKey);
+                    const newStory = parseSafeJSON(resultText);
+                    setStoryData(newStory);
+                } catch (error) {
+                    console.error("生成故事失败:", error);
+                    setErrorMsg(`生成剧本失败 (${getCurrentModelConfig().name})：${error.message}`);
+                    setAppStage('home'); 
+                } finally {
+                    setLoadingStory(false);
+                }
+            };
+
+            const startChatCritique = async () => {
+                if (selectedSentence === null || !userReason.trim()) return;
+                setChatPhase('analyzing');
+
+                const addressUserAs = nickname.trim() ? nickname.trim() : "您";
+                let systemPrompt = `你是一个深谙逻辑学和沟通技巧的中文导师。你正在辅导用户拆解一段【逻辑陷阱】。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要像真实的导师一样亲切自然，绝对不要使用第三人称（如“这位用户”）。` + getBilingualRule();
+                const cleanSentence = storyData.content[selectedSentence].replace(/\[\/?ENG\]/g, ''); 
+                
+                const apiContextPrompt = `
+                    【背景句子】：${cleanSentence}
+                    【标准谬误】：${selectedSentence === storyData.flawIndex ? storyData.fallacyName : "此句其实没有明显的逻辑谬误"}
+                    【用户的初始拆解理由】：${userReason}
+                    
+                    请执行任务：【点评拆解】。
+                    1. 若选错：委婉指出，并解释为何没毛病。
+                    2. 若选对：评价其理由是否切中要害。
+                    【注意】：本次回复**仅限进行点评**，绝对不要提供反驳应对示范！示范我们将在后续步骤生成。
+                `;
+
+                const initialChatLog = [{ role: 'user', content: userReason, apiContent: apiContextPrompt }];
+                setChatLog(initialChatLog);
+
+                try {
+                    const apiMessages = initialChatLog.map(msg => ({ role: msg.role, parts: [{ text: msg.apiContent || msg.content }] }));
+                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false, customApiKey);
+                    const finalLog = [...initialChatLog, { role: 'model', content: resultText }];
+                    setChatLog(finalLog);
+                    setChatPhase('step1_done');
+                    autoSaveToSupabase(finalLog);
+                } catch (error) {
+                    console.error(error);
+                    setChatLog([...initialChatLog, { role: 'model', content: `调用失败：${error.message}` }]);
+                    setChatPhase('idle');
+                }
+            };
+
+            const generateHeadOn = async () => {
+                setChatPhase('generating_head_on');
+                const addressUserAs = nickname.trim() ? nickname.trim() : "您";
+                let systemPrompt = `你是一个深谙逻辑学和沟通技巧的中文导师。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要亲切自然，不要使用第三人称。` + getBilingualRule();
+                
+                const actionPrompt = `太棒了。现在请基于刚才的点评，为用户提供【高明应对示范 1：正面硬刚式】。
+要求：四平八稳地指出对方逻辑漏洞，不卑不亢地直接反驳对方，给出具体的话术示范。不要生成其它多余内容。`;
+
+                const updatedLog = [...chatLog, { role: 'user', content: "请给出【正面硬刚式】的反驳示范。", apiContent: actionPrompt }];
+                setChatLog(updatedLog);
+
+                try {
+                    const apiMessages = updatedLog.map(msg => ({ role: msg.role, parts: [{ text: msg.apiContent || msg.content }] }));
+                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false, customApiKey);
+                    const finalLog = [...updatedLog, { role: 'model', content: resultText }];
+                    setChatLog(finalLog);
+                    setChatPhase('step2_done');
+                    autoSaveToSupabase(finalLog);
+                } catch (error) {
+                    setChatLog([...updatedLog, { role: 'model', content: `调用失败：${error.message}` }]);
+                    setChatPhase('step1_done'); 
+                }
+            };
+
+            const generateHighEq = async () => {
+                setChatPhase('generating_high_eq');
+                const addressUserAs = nickname.trim() ? nickname.trim() : "您";
+                let systemPrompt = `你是一个深谙逻辑学和沟通技巧的中文导师。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要亲切自然，不要使用第三人称。` + getBilingualRule();
+                
+                const actionPrompt = `很好。现在请继续提供【高明应对示范 2：高情商回复式】。
+要求：展现极高的情商，不卑不亢，既能巧妙化解对方的逻辑陷阱，又能照顾到双方的面子，引导对话走向建设性方向，给出温和但坚定的话术示范。结尾引导用户继续自由发问或探讨。`;
+
+                const updatedLog = [...chatLog, { role: 'user', content: "请再给出【高情商回复式】的反驳示范。", apiContent: actionPrompt }];
+                setChatLog(updatedLog);
+
+                try {
+                    const apiMessages = updatedLog.map(msg => ({ role: msg.role, parts: [{ text: msg.apiContent || msg.content }] }));
+                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false, customApiKey);
+                    const finalLog = [...updatedLog, { role: 'model', content: resultText }];
+                    setChatLog(finalLog);
+                    setChatPhase('free_chat');
+                    autoSaveToSupabase(finalLog);
+                } catch (error) {
+                    setChatLog([...updatedLog, { role: 'model', content: `调用失败：${error.message}` }]);
+                    setChatPhase('step2_done'); 
+                }
+            };
+
+            const handleSendReply = async () => {
+                if (!replyText.trim() || chatPhase.includes('generating')) return;
+                
+                const newUserMsg = { role: 'user', content: replyText };
+                const updatedLog = [...chatLog, newUserMsg];
+                setChatLog(updatedLog);
+                setReplyText("");
+                setChatPhase('generating_free_chat');
+
+                const addressUserAs = nickname.trim() ? nickname.trim() : "您";
+                const systemPrompt = `你是一个深谙逻辑学与沟通技巧的中文导师。像真实的聊天一样回应用户的探讨，必要时提供应对建议。\n\n【互动要求】：在回复中，请直接称呼用户为“${addressUserAs}”，语气要亲切自然，不要使用第三人称。` + getBilingualRule();
+
+                try {
+                    const apiMessages = updatedLog.map(msg => ({ role: msg.role, parts: [{ text: msg.apiContent || msg.content }] }));
+                    const resultText = await callAI(systemPrompt, apiMessages, getCurrentModelConfig(), false, customApiKey);
+                    const finalLog = [...updatedLog, { role: 'model', content: resultText }];
+                    setChatLog(finalLog);
+                    setChatPhase('free_chat');
+                    autoSaveToSupabase(finalLog);
+                } catch (error) {
+                    setChatLog([...updatedLog, { role: 'model', content: `调用失败：${error.message}` }]);
+                    setChatPhase('free_chat');
+                }
+            };
+
             const resetInteraction = () => {
                 setSelectedSentence(null);
                 setUserReason("");
                 setChatLog([]);
                 setShowHint(false);
+                setChatPhase('idle');
                 setAutoSaveStatus("");
             };
 
             const backToHome = () => {
                 setAppStage('home');
-                // 注意：这里不再设置 setStoryData(null)，以保留历史对线记录，供“返回上一次对话”使用
             };
 
-            // ==============================
-            // UI 渲染：主页（定制剧本）
-            // ==============================
             const renderHome = () => (
                 <div className="max-w-4xl mx-auto animate-[fadeIn_0.4s_ease-out]">
                     <div className="text-center mb-10 mt-10">
                         <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight flex items-center justify-center gap-3 mb-4">
                             <span className="text-4xl">🛡️</span> 逻辑防身术
                         </h1>
-                        <p className="text-slate-500 text-lg">定制你的专属对线剧本，在实战中提升逻辑素养。</p>
+                        <p className="text-slate-500 text-lg">定制您的专属对线剧本，在实战中提升逻辑素养与英语水平。</p>
                     </div>
 
                     <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden">
-                        {/* 顶部多标签栏 */}
                         <div className="flex flex-wrap border-b border-slate-100 bg-slate-50">
-                            <button 
-                                onClick={() => setUserType('worker')}
-                                className={`flex-1 min-w-[120px] py-4 sm:py-5 text-sm sm:text-lg font-bold transition-colors border-b-2 ${userType === 'worker' ? THEME_CONFIG.worker.tabColor : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
-                            >
-                                🏢 打工人
-                            </button>
-                            <button 
-                                onClick={() => setUserType('student')}
-                                className={`flex-1 min-w-[120px] py-4 sm:py-5 text-sm sm:text-lg font-bold transition-colors border-b-2 ${userType === 'student' ? THEME_CONFIG.student.tabColor : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
-                            >
-                                🎒 学生篇
-                            </button>
-                            <button 
-                                onClick={() => setUserType('housewife')}
-                                className={`flex-1 min-w-[120px] py-4 sm:py-5 text-sm sm:text-lg font-bold transition-colors border-b-2 ${userType === 'housewife' ? THEME_CONFIG.housewife.tabColor : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
-                            >
-                                👩‍🍳 家庭主妇
-                            </button>
-                            <button 
-                                onClick={() => setUserType('cfa')}
-                                className={`flex-1 min-w-[120px] py-4 sm:py-5 text-sm sm:text-lg font-bold transition-colors border-b-2 ${userType === 'cfa' ? THEME_CONFIG.cfa.tabColor : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
-                            >
-                                ⚽ 中国足协
-                            </button>
-                            <button 
-                                onClick={() => setUserType('quarrel')}
-                                className={`flex-1 min-w-[120px] py-4 sm:py-5 text-sm sm:text-lg font-bold transition-colors border-b-2 ${userType === 'quarrel' ? THEME_CONFIG.quarrel.tabColor : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
-                            >
-                                🔥 吵架实战
-                            </button>
+                            {Object.keys(opponentsMap).map(type => (
+                                <button 
+                                    key={type}
+                                    onClick={() => setUserType(type)}
+                                    className={`flex-1 min-w-[120px] py-4 sm:py-5 text-sm sm:text-lg font-bold transition-colors border-b-2 ${userType === type ? THEME_CONFIG[type].tabColor : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
+                                >
+                                    {type === 'worker' ? '🏢 职场牛马' : type === 'student' ? '🎒 少年的烦恼' : type === 'housewife' ? '👩‍🍳 家庭琐事' : type === 'cfa' ? '⚽ 中国足球' : '🔥 怼王之王'}
+                                </button>
+                            ))}
                         </div>
 
                         <div className="p-6 sm:p-8 space-y-8">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">
-                                    1. 你的具体身份
-                                </label>
-                                <input 
-                                    type="text" 
-                                    placeholder={
-                                        userType === 'worker' ? "例如：新媒体运营、前端开发、客服主管..." : 
-                                        userType === 'student' ? "例如：大二学生、高三理科生..." : 
-                                        userType === 'housewife' ? "例如：全职妈妈、二胎宝妈、家庭主男..." : 
-                                        userType === 'cfa' ? "例如：足协官员、赛事总监、青训主管..." :
-                                        "例如：经常冲浪的网友、被催婚的单身青年、暴躁老哥..."
-                                    }
-                                    className={`w-full border-2 border-slate-200 rounded-xl p-3.5 focus:ring-0 outline-none transition-colors text-slate-700 ${currentTheme.focus}`}
-                                    value={roleName}
-                                    onChange={(e) => setRoleName(e.target.value)}
-                                />
+                                <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">1. 您的身份与称呼</label>
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                    <input 
+                                        type="text" 
+                                        placeholder="具体身份（如：新媒体运营、大二学生...）"
+                                        className={`w-full sm:w-2/3 border-2 border-slate-200 rounded-xl p-3.5 focus:ring-0 outline-none transition-colors text-slate-700 ${currentTheme.focus}`}
+                                        value={roleName}
+                                        onChange={(e) => setRoleName(e.target.value)}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="您的称呼（如：小明，选填）"
+                                        className={`w-full sm:w-1/3 border-2 border-slate-200 rounded-xl p-3.5 focus:ring-0 outline-none transition-colors text-slate-700 ${currentTheme.focus}`}
+                                        value={nickname}
+                                        onChange={(e) => setNickname(e.target.value)}
+                                    />
+                                </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">
-                                    2. 补充背景（选填，让剧本更真实）
-                                </label>
-                                <textarea 
-                                    placeholder={
-                                        userType === 'worker' ? "例如：最近经常被要求无偿加班，而且负责的项目总是背锅..." : 
-                                        userType === 'student' ? "例如：最近准备考研压力很大，还要面对家长的催促..." : 
-                                        userType === 'housewife' ? "例如：孩子刚上小学，每天辅导作业鸡飞狗跳，去买菜还总被坑..." : 
-                                        userType === 'cfa' ? "例如：国家队刚输给弱旅，舆论压力巨大，准备召开反思大会..." :
-                                        "例如：刚发了一条客观评价某电影的帖子，结果引来一群极端粉丝围攻..."
-                                    }
-                                    className={`w-full border-2 border-slate-200 rounded-xl p-3.5 focus:ring-0 outline-none transition-colors text-slate-700 resize-none h-24 ${currentTheme.focus}`}
-                                    value={extraInfo}
-                                    onChange={(e) => setExtraInfo(e.target.value)}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">
-                                    3. 选择你要对线的对象
-                                </label>
+                                <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">2. 选择你要对线的对象</label>
                                 <div className="flex flex-wrap gap-3">
                                     {opponentsMap[userType].map(opt => (
                                         <button
                                             key={opt}
                                             onClick={() => setOpponent(opt)}
-                                            className={`px-5 py-2 rounded-full font-medium transition-all ${
-                                                opponent === opt 
-                                                ? `${currentTheme.primary} text-white shadow-md`
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                            }`}
+                                            className={`px-5 py-2 rounded-full font-medium transition-all ${opponent === opt ? `${currentTheme.primary} text-white shadow-md` : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                                         >
                                             {opt}
                                         </button>
@@ -699,37 +729,34 @@
                             </div>
 
                             <div className="pt-4 border-t border-slate-100">
-                                <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">
-                                    4. 逻辑陷阱难度
-                                </label>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {[
-                                        { level: 1, title: '🟢 青铜 (简单)', desc: '一眼看穿的低级诡辩' },
-                                        { level: 2, title: '🟡 白银 (中等)', desc: '日常沟通中的逻辑陷阱' },
-                                        { level: 3, title: '🔴 王者 (极难)', desc: '极其微小、合情合理的高级洗脑' }
-                                    ].map(d => (
-                                        <div 
-                                            key={d.level}
-                                            onClick={() => setDifficulty(d.level)}
-                                            className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${
-                                                difficulty === d.level 
-                                                ? `${currentTheme.border} ${currentTheme.lightBg} shadow-sm` 
-                                                : 'border-slate-100 bg-white hover:border-slate-300'
-                                            }`}
-                                        >
-                                            <div className={`font-bold mb-1 ${difficulty === d.level ? currentTheme.text : 'text-slate-700'}`}>
-                                                {d.title}
-                                            </div>
-                                            <div className="text-xs text-slate-500 leading-relaxed">{d.desc}</div>
-                                        </div>
+                                <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">3. 选择逻辑谬误类型</label>
+                                <select
+                                    className={`w-full border-2 border-slate-200 rounded-xl p-3 focus:ring-0 outline-none transition-colors text-slate-700 bg-white cursor-pointer font-medium ${currentTheme.focus}`}
+                                    value={selectedFallacy}
+                                    onChange={(e) => setSelectedFallacy(e.target.value)}
+                                >
+                                    {FALLACY_TYPES.map(fallacy => (
+                                        <option key={fallacy} value={fallacy}>{fallacy}</option>
                                     ))}
+                                </select>
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100">
+                                <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">4. 语言模式 (支持发音)</label>
+                                <div className="flex flex-col sm:flex-row gap-4 bg-slate-50 p-4 rounded-xl border-2 border-slate-100">
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <input type="radio" value="zh" checked={languageMode === 'zh'} onChange={()=>setLanguageMode('zh')} className={`w-5 h-5 accent-${themeColorName}-600`}/>
+                                        <span className="font-bold text-slate-700">🇨🇳 全中文版</span>
+                                    </label>
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <input type="radio" value="bilingual" checked={languageMode === 'bilingual'} onChange={()=>setLanguageMode('bilingual')} className={`w-5 h-5 accent-${themeColorName}-600`}/>
+                                        <span className="font-bold text-slate-700">🌍 中英双语版 <span className="text-xs font-normal text-slate-500">(附带英语朗读功能)</span></span>
+                                    </label>
                                 </div>
                             </div>
 
                             <div className="pt-4 border-t border-slate-100">
-                                <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">
-                                    5. 选择 AI 导师模型及配置
-                                </label>
+                                <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">5. 选择 AI 模型及配置</label>
                                 <div className="flex flex-col sm:flex-row gap-4">
                                     <select
                                         className={`flex-1 border-2 border-slate-200 rounded-xl p-3 focus:ring-0 outline-none transition-colors text-slate-700 bg-slate-50 cursor-pointer font-medium ${currentTheme.focus}`}
@@ -742,14 +769,14 @@
                                     </select>
                                     <input 
                                         type="password"
-                                        placeholder="输入自定义 API Key (按需填写)"
+                                        placeholder="输入自定义 API Key (选填)"
                                         className={`flex-1 border-2 border-slate-200 rounded-xl p-3 focus:ring-0 outline-none transition-colors text-slate-700 ${currentTheme.focus}`}
                                         value={customApiKey}
                                         onChange={(e) => setCustomApiKey(e.target.value)}
                                     />
                                 </div>
                                 {selectedModelId === 'gemini-3-flash-preview' && (
-                                    <p className="text-xs text-amber-600 mt-2 font-medium">⚠️ 提示：当前选择的 Google 模型没有内置密钥，请在右侧输入框手动输入你的 API Key 才能使用。</p>
+                                    <p className="text-xs text-amber-600 mt-2 font-medium">⚠️ 提示：当前选择的 Google 模型需手动输入 API Key。</p>
                                 )}
                             </div>
 
@@ -758,16 +785,11 @@
                             <div className="flex flex-col gap-3">
                                 <button 
                                     onClick={generateTargetedStory}
-                                    className={`w-full py-4 rounded-2xl font-bold text-lg text-white shadow-lg transition-all ${
-                                        !roleName.trim() 
-                                        ? 'bg-slate-300 cursor-not-allowed' 
-                                        : `${currentTheme.primary} ${currentTheme.hover} ${currentTheme.shadow}`
-                                    }`}
+                                    className={`w-full py-4 rounded-2xl font-bold text-lg text-white shadow-lg transition-all ${!roleName.trim() ? 'bg-slate-300 cursor-not-allowed' : `${currentTheme.primary} ${currentTheme.hover} ${currentTheme.shadow}`}`}
                                 >
                                     进入模拟器，生成新剧本 🚀
                                 </button>
                                 
-                                {/* 新增：返回上一次对话按钮 */}
                                 {storyData && (
                                     <button 
                                         onClick={() => setAppStage('training')}
@@ -782,9 +804,6 @@
                 </div>
             );
 
-            // ==============================
-            // UI 渲染：训练页（实战拆解）
-            // ==============================
             const renderTraining = () => {
                 if (loadingStory || !storyData) {
                     return (
@@ -799,21 +818,15 @@
                 }
 
                 return (
-                    <div className="max-w-6xl mx-auto flex flex-col gap-6 animate-[fadeIn_0.4s_ease-out] mt-6">
+                    <div className="max-w-6xl mx-auto flex flex-col gap-6 animate-[fadeIn_0.4s_ease-out] mt-6 pb-20">
                         <div className="flex items-center justify-between bg-white px-6 py-4 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-slate-100">
-                            {/* 修改：将“返回重新设定”文案改为“主页” */}
                             <button onClick={backToHome} className="text-slate-400 hover:text-slate-700 font-medium flex items-center gap-2 transition-colors">
                                 <span>←</span> 主页
                             </button>
-                            
                             <div className="flex items-center gap-4">
                                 <div className="hidden lg:flex items-center gap-2">
-                                    <span className="text-sm font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
-                                        {roleName} vs {opponent}
-                                    </span>
-                                    <span className={`text-sm font-bold px-3 py-1 rounded-full text-white ${difficulty === 1 ? 'bg-green-500' : difficulty === 2 ? 'bg-amber-500' : 'bg-rose-500'}`}>
-                                        难度 {difficulty}
-                                    </span>
+                                    <span className="text-sm font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">{roleName} vs {opponent}</span>
+                                    <span className={`text-sm font-bold px-3 py-1 rounded-full text-white ${difficulty === 1 ? 'bg-green-500' : difficulty === 2 ? 'bg-amber-500' : 'bg-rose-500'}`}>难度 {difficulty}</span>
                                 </div>
                             </div>
                         </div>
@@ -821,8 +834,9 @@
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                             <div className="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 p-6 sm:p-8 sticky top-6">
                                 <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
-                                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                        <span className="text-2xl">{currentTheme.icon}</span> {storyData.title}
+                                    <h2 className="text-xl font-bold text-slate-800 flex items-start gap-3">
+                                        <span className="text-2xl mt-1">{currentTheme.icon}</span> 
+                                        <div className="flex-1">{renderBilingualText(storyData.title, themeColorName)}</div>
                                     </h2>
                                 </div>
                                 
@@ -830,19 +844,17 @@
                                     {storyData.content.map((sentence, index) => {
                                         const isSelected = selectedSentence === index;
                                         const isHinted = showHint && index === storyData.flawIndex;
-                                        
                                         return (
-                                            <div key={index}>
-                                                <span 
-                                                    onClick={() => { resetInteraction(); setSelectedSentence(index); }}
-                                                    className={`
-                                                        inline-block cursor-pointer transition-all duration-200 rounded-lg px-2 py-1 -ml-2
-                                                        ${isSelected ? currentTheme.selectedItem : 'hover:bg-slate-100'}
-                                                        ${isHinted && !isSelected ? 'border-b-2 border-dashed border-rose-400 bg-rose-50' : ''}
-                                                    `}
-                                                >
-                                                    {sentence}
-                                                </span>
+                                            <div 
+                                                key={index}
+                                                onClick={() => { resetInteraction(); setSelectedSentence(index); }}
+                                                className={`
+                                                    cursor-pointer transition-all duration-200 rounded-xl px-4 py-2 -mx-4
+                                                    ${isSelected ? currentTheme.selectedItem : 'hover:bg-slate-100'}
+                                                    ${isHinted && !isSelected ? 'border-l-4 border-rose-400 bg-rose-50' : 'border-l-4 border-transparent'}
+                                                `}
+                                            >
+                                                {renderBilingualText(sentence, themeColorName)}
                                             </div>
                                         );
                                     })}
@@ -853,7 +865,7 @@
                                         onClick={generateTargetedStory}
                                         className={`text-sm font-bold px-4 py-2 rounded-lg transition-colors ${currentTheme.lightBg} ${currentTheme.text} hover:opacity-80`}
                                     >
-                                        🔄 换个完全不同套路的剧本
+                                        🔄 换个剧本
                                     </button>
                                     <button 
                                         onClick={() => setShowHint(true)}
@@ -869,19 +881,18 @@
                                     <div className="bg-slate-100/50 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center p-12 text-slate-400 h-full min-h-[400px]">
                                         <span className="text-4xl mb-4">🎯</span>
                                         <p>点击左侧文本中</p>
-                                        <p>你认为存在“逻辑漏洞”的那句话</p>
-                                        {difficulty === 3 && <p className="text-rose-400 text-sm mt-4 font-bold">⚠️ 注意：当前为极难模式，谬误伪装得很深</p>}
+                                        <p>您认为存在“逻辑漏洞”的那句话</p>
                                     </div>
                                 )}
 
-                                {selectedSentence !== null && chatLog.length === 0 && (
+                                {selectedSentence !== null && chatPhase === 'idle' && (
                                     <div className="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 p-6 sm:p-8 animate-[fadeIn_0.3s_ease-out]">
-                                        <blockquote className={`border-l-4 pl-4 py-2 italic text-slate-700 bg-slate-50 rounded-r-lg mb-6 text-lg ${currentTheme.border}`}>
-                                            "{storyData.content[selectedSentence]}"
-                                        </blockquote>
+                                        <div className={`border-l-4 pl-4 py-2 italic text-slate-700 bg-slate-50 rounded-r-lg mb-6 text-lg ${currentTheme.border}`}>
+                                            {renderBilingualText(storyData.content[selectedSentence], themeColorName)}
+                                        </div>
                                         
                                         <label className="block font-bold text-slate-800 mb-2 text-lg">
-                                            你的拆解与反驳：
+                                            您的拆解与反驳：
                                         </label>
                                         <textarea
                                             className={`w-full border-2 border-slate-200 rounded-2xl p-4 focus:ring-0 outline-none transition-all resize-none text-slate-700 text-base ${currentTheme.focus}`}
@@ -895,17 +906,17 @@
                                             <button onClick={resetInteraction} className="px-5 py-2.5 text-slate-500 font-medium hover:bg-slate-100 rounded-xl transition-colors">取消</button>
                                             <button 
                                                 onClick={startChatCritique}
-                                                disabled={loadingCritique || !userReason.trim()}
+                                                disabled={!userReason.trim()}
                                                 className={`px-6 py-2.5 text-white rounded-xl font-bold transition-all shadow-md disabled:shadow-none flex items-center gap-2 ${currentTheme.primary} ${currentTheme.hover} disabled:opacity-50`}
                                             >
-                                                {loadingCritique ? '分析中...' : '提交点评'}
+                                                提交拆解分析
                                             </button>
                                         </div>
                                     </div>
                                 )}
 
-                                {chatLog.length > 0 && (
-                                    <div className="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col h-[600px] animate-[fadeIn_0.4s_ease-out]">
+                                {chatPhase !== 'idle' && (
+                                    <div className="bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col h-[700px] animate-[fadeIn_0.4s_ease-out]">
                                         <div className={`px-6 py-4 border-b border-slate-100 rounded-t-3xl flex items-center justify-between ${currentTheme.lightBg}`}>
                                             <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                                 <span className="text-xl">🎓</span> 导师深度探讨室
@@ -915,50 +926,74 @@
                                             </button>
                                         </div>
                                         
-                                        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30">
-                                            {chatLog.map((msg, idx) => (
-                                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 shadow-sm ${
-                                                        msg.role === 'user' 
-                                                        ? `${currentTheme.primary} text-white rounded-tr-sm`
-                                                        : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'
-                                                    }`}>
-                                                        {msg.role === 'model' && idx === 1 && <div className={`text-xs font-bold mb-1 ${currentTheme.text}`}>导师 ({getCurrentModelConfig().name})</div>}
-                                                        <div className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            
-                                            {loadingCritique && (
-                                                <div className="flex justify-start">
-                                                    <div className="max-w-[85%] rounded-2xl rounded-tl-sm px-5 py-4 bg-white border border-slate-200 text-slate-500 flex items-center gap-3 shadow-sm text-sm">
-                                                        <svg className={`animate-spin h-4 w-4 ${currentTheme.text}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                                        导师正在推演...
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div ref={chatEndRef} />
-                                        </div>
+                                        <div className="flex-1 overflow-y-auto p-0 bg-slate-50/30 flex flex-col">
+                                            <div className="bg-slate-100 border-b border-slate-200 py-6 px-4 text-center animate-[fadeIn_0.5s_ease-out]">
+                                                <p className="text-sm font-bold text-slate-500 mb-2 tracking-widest uppercase">本案核心逻辑谬误</p>
+                                                <h2 className={`text-2xl md:text-3xl font-extrabold ${currentTheme.text}`}>
+                                                    {renderBilingualText(storyData.fallacyName, themeColorName)}
+                                                </h2>
+                                            </div>
 
-                                        <div className="p-4 bg-white border-t border-slate-100 rounded-b-3xl">
-                                            <div className="flex gap-2">
-                                                <textarea 
-                                                    className={`flex-1 border-2 border-slate-200 rounded-xl p-3 focus:ring-0 outline-none resize-none text-[15px] bg-slate-50 ${currentTheme.focus}`}
-                                                    rows="2"
-                                                    placeholder="继续探讨、反驳或提问..."
-                                                    value={replyText}
-                                                    onChange={(e) => setReplyText(e.target.value)}
-                                                    onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendReply(); } }}
-                                                />
-                                                <button 
-                                                    onClick={handleSendReply}
-                                                    disabled={loadingCritique || !replyText.trim()}
-                                                    className={`px-6 text-white font-bold rounded-xl transition-colors shadow-sm ${currentTheme.primary} ${currentTheme.hover} disabled:opacity-50`}
-                                                >
-                                                    发送
-                                                </button>
+                                            <div className="p-6 space-y-6">
+                                                {chatLog.map((msg, idx) => (
+                                                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[90%] rounded-2xl px-5 py-4 shadow-sm ${
+                                                            msg.role === 'user' 
+                                                            ? `${currentTheme.primary} text-white rounded-tr-sm`
+                                                            : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'
+                                                        }`}>
+                                                            {msg.role === 'model' && <div className={`text-xs font-bold mb-2 ${currentTheme.text}`}>导师回复</div>}
+                                                            {/* 对于用户的输入，如果是第一条且没有[ENG]包裹，就直接渲染；如果是模型回复，调用双语渲染器 */}
+                                                            <div className="text-[15px] leading-relaxed">
+                                                                {msg.role === 'model' || msg.content.includes('[ENG]') ? renderBilingualText(msg.content, themeColorName) : msg.content}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                
+                                                {/* 步骤提示按钮区域 */}
+                                                <div className="flex flex-col items-center gap-3 py-4">
+                                                    {chatPhase === 'analyzing' && <div className={`text-sm font-bold flex items-center gap-2 ${currentTheme.text}`}><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 导师正在点评...</div>}
+                                                    {chatPhase === 'generating_head_on' && <div className={`text-sm font-bold flex items-center gap-2 ${currentTheme.text}`}><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 正在生成“正面硬刚式”示范...</div>}
+                                                    {chatPhase === 'generating_high_eq' && <div className={`text-sm font-bold flex items-center gap-2 ${currentTheme.text}`}><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 正在生成“高情商回复式”示范...</div>}
+                                                    {chatPhase === 'generating_free_chat' && <div className={`text-sm font-bold flex items-center gap-2 ${currentTheme.text}`}><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 导师正在回复...</div>}
+                                                    
+                                                    {chatPhase === 'step1_done' && (
+                                                        <button onClick={generateHeadOn} className={`px-6 py-3 text-white rounded-full font-bold shadow-md transition-all animate-[fadeIn_0.5s_ease-out] ${currentTheme.primary} ${currentTheme.hover}`}>
+                                                            ✅ 点评完毕。点击继续生成【正面硬刚式】回怼示范
+                                                        </button>
+                                                    )}
+                                                    {chatPhase === 'step2_done' && (
+                                                        <button onClick={generateHighEq} className={`px-6 py-3 text-white rounded-full font-bold shadow-md transition-all animate-[fadeIn_0.5s_ease-out] ${currentTheme.primary} ${currentTheme.hover}`}>
+                                                            ✅ 示范一完毕。点击继续生成【高情商回复式】化解冲突示范
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div ref={chatEndRef} />
                                             </div>
                                         </div>
+
+                                        {chatPhase === 'free_chat' && (
+                                            <div className="p-4 bg-white border-t border-slate-100 rounded-b-3xl animate-[fadeIn_0.5s_ease-out]">
+                                                <div className="flex gap-2">
+                                                    <textarea 
+                                                        className={`flex-1 border-2 border-slate-200 rounded-xl p-3 focus:ring-0 outline-none resize-none text-[15px] bg-slate-50 ${currentTheme.focus}`}
+                                                        rows="2"
+                                                        placeholder="继续自由探讨、提问或追问..."
+                                                        value={replyText}
+                                                        onChange={(e) => setReplyText(e.target.value)}
+                                                        onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendReply(); } }}
+                                                    />
+                                                    <button 
+                                                        onClick={handleSendReply}
+                                                        disabled={!replyText.trim()}
+                                                        className={`px-6 text-white font-bold rounded-xl transition-colors shadow-sm ${currentTheme.primary} ${currentTheme.hover} disabled:opacity-50`}
+                                                    >
+                                                        发送
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
